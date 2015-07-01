@@ -16,12 +16,14 @@
 /* DATA DEFINITIONS */
 typedef enum eAnubisKinds {
     K_FUNCTION,
-    K_TYPE
+    K_TYPE,
+    K_TYPE_ALTERNATIVE
 } anubisKind;
 
 static kindOption AnubisKinds [] = {
     { TRUE, 'f', "function", "function definitions" },
-    { TRUE, 't', "def", "type definitions" }
+    { TRUE, 't', "typedef", "type definitions" },
+    { TRUE, 'a', "macro", "alternative" }
 };
 
 static int nextChar (void)
@@ -46,6 +48,7 @@ static void skipToMatch (const char *const pair)
 	while (matchLevel > 0)
 	{
 		c = nextChar ();
+		
 		if (c == begin)
 			++matchLevel;
 		else if (c == end)
@@ -60,12 +63,17 @@ static void skipToMatch (const char *const pair)
 
 static boolean isFunctionName (int c)
 {
-	return (boolean)(c != '\0' && ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 95));
+	return (boolean)(c != '\0' && ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95));
 }
 
 static boolean isTypeName (int c)
 {
-	return (boolean)(c != '\0' && ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 95));
+	return (boolean)(c != '\0' && ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95));
+}
+
+static boolean isAlternativeName (int c)
+{
+	return (boolean)(c != '\0' && ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95));
 }
 
 static boolean isKeyword (int c)
@@ -128,6 +136,80 @@ static boolean readType (const int first, vString *const id)
 		readSomething(c, id, (void *)isTypeName);
 			
 		makeSimpleTag (id, AnubisKinds, K_TYPE);
+		
+		c = skipToNonWhite ();
+		c = skipNewlineToNextChar(c);
+		
+		if (c == '(')
+		{
+			skipToMatch ("()");
+			c = fileGetc ();
+		}
+
+		if (c == ':')
+		{
+			// check alternatives
+			while (c != EOF)
+			{
+				skipNewlineWhitespaceComment:
+				c = skipToNonWhite ();
+				c = skipNewlineToNextChar (c);
+				
+				// handle comment after ':' or between lines
+				if (c == '/')
+				{
+					if (nextChar () == '/')
+					{
+						do
+						{
+							c = nextChar ();
+						} while (c != '\n' && c != EOF);
+						
+						if (c == '\n')
+						{
+							goto skipNewlineWhitespaceComment;
+						}
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if (c >= 97 && c <= 122) {
+					readSomething(c, id, (void *)isAlternativeName);
+					
+					makeSimpleTag (id, AnubisKinds, K_TYPE_ALTERNATIVE);
+					
+					while (c != ',' && c != '.' && c != EOF)
+					{
+						c = nextChar ();
+						
+						if (c == '(')
+						{
+							skipToMatch ("()");
+							c = fileGetc ();
+						}
+					}
+
+					if (c == EOF)
+					{
+						break;
+					}
+					else
+					{
+						if (c == '.')
+						{
+							break;
+						}
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
 		
 		return TRUE;
 	}
@@ -214,7 +296,7 @@ static void findAnubisTags (void)
 						}
 					}
 					
-					// type
+					// function return type
 					if (c >= 65 && c <= 90 || c == '(')
 					{
 						skipType:
