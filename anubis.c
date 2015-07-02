@@ -102,9 +102,10 @@ static void readSomething (const int first, vString *const id, boolean (*fn)(int
 static int skipToNonWhite (void)
 {
 	int c;
-	do
+	do {
 		c = nextChar ();
-	while (c != '\n' && (isspace (c) || c == '\t'));
+	} while (c != '\n' && (isspace (c) || c == '\t'));
+	
 	return c;
 }
 
@@ -113,8 +114,43 @@ static int skipNewlineToNextChar (const int first)
 	int c = first;
 	while (c == '\n') {
 		c = nextChar ();
-		c = skipToNonWhite ();
+		
+		if (c == ' ') {
+			c = skipToNonWhite ();
+		}
 	};
+	
+	return c;
+}
+
+static int skipLineComment (void)
+{
+	int c;
+	
+	skipNewlineWhitespaceComment:
+	c = skipToNonWhite ();
+	c = skipNewlineToNextChar (c);
+
+	if (c == '/')
+	{
+		if ((c = nextChar ()) == '/')
+		{
+			do
+			{
+				c = nextChar ();
+			} while (c != '\n' && c != EOF);
+		
+			if (c == '\n')
+			{
+				goto skipNewlineWhitespaceComment;
+			}
+		}
+		else
+		{
+			c = skipToNonWhite ();
+			c = skipNewlineToNextChar (c);
+		}
+	}
 	
 	return c;
 }
@@ -127,9 +163,7 @@ static boolean readType (const int first, vString *const id)
 		c = nextChar ();
 	}
 
-	c = skipToNonWhite ();
-
-	c = skipNewlineToNextChar(c);
+	c = skipLineComment();
 
 	if (c >= 65 && c <= 90)
 	{
@@ -151,30 +185,7 @@ static boolean readType (const int first, vString *const id)
 			// check alternatives
 			while (c != EOF)
 			{
-				skipNewlineWhitespaceComment:
-				c = skipToNonWhite ();
-				c = skipNewlineToNextChar (c);
-				
-				// handle comment after ':' or between lines
-				if (c == '/')
-				{
-					if (nextChar () == '/')
-					{
-						do
-						{
-							c = nextChar ();
-						} while (c != '\n' && c != EOF);
-						
-						if (c == '\n')
-						{
-							goto skipNewlineWhitespaceComment;
-						}
-					}
-					else
-					{
-						break;
-					}
-				}
+				c = skipLineComment();
 
 				if (c >= 97 && c <= 122) {
 					readSomething(c, id, (void *)isAlternativeName);
@@ -225,9 +236,7 @@ static int skipKnownIdentifier (const int first)
 		c = nextChar ();
 	}
 	
-	c = skipToNonWhite ();
-	
-	c = skipNewlineToNextChar(c);
+	c = skipLineComment();
 	
 	return c;
 }
@@ -256,11 +265,10 @@ static void findAnubisTags (void)
 					strcmp (vStringValue (name), "Public") == 0 ||
 					strcmp (vStringValue (name), "Define") == 0)
 				{
-					c = skipToNonWhite ();
-					c = skipNewlineToNextChar(c);
+					c = skipLineComment();
 					
 					readSomething(c, name, (void *)isKeyword);
-					
+
 					if (strcmp (vStringValue (name), "macro")  == 0 ||
 						strcmp (vStringValue (name), "inline") == 0)
 					{
@@ -315,14 +323,12 @@ static void findAnubisTags (void)
 							}
 						}
 						
-						c = skipToNonWhite ();
+						c = skipLineComment();
 						
 						if (c == '(')
 						{
 							goto skipType;
 						}
-						
-						c = skipNewlineToNextChar(c);
 						
 						if (isFunctionName (c)) {
 							readSomething(c, name, (void *)isFunctionName);
