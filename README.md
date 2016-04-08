@@ -2,3 +2,7 @@ ctags-anubis
 =========================
 
 Add support for the Anubis language to [Ctags](http://ctags.sourceforge.net/), support functions and (a subset) of possible type definitions.
+
+This was essentially made because i wanted to use packages which use ctags for the [Atom](https://atom.io/) editor (which have an already good support of the Anubis language by the way with the [linter-anubis](https://atom.io/packages/linter-anubis) and [language-anubis](https://atom.io/packages/language-anubis) package)
+
+Note: If you use Atom and want to install packages that use ctags like [atom-ctags](https://atom.io/packages/atom-ctags) and [symbols-tree-view](https://atom.io/packages/symbols-tree-view) you will need to replace the ctags binaries inside each of these packages by the one you compiled with Anubis support, under Windows you need to replace this file "C:\Users\[your_username]\.atom\packages\[package_name]\vendor\ctags-win32.exe")
